@@ -36,6 +36,14 @@ async function run() {
         const usersCollection = db.collection('users');
 
         // :::::::::::::::::::::::::::::: - User Related APIS - ::::::::::::::::::::::::::::::
+        // Get API for user role
+        app.get('/users/:email/role', async (req, res) => {
+            const email = req.params.email;
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+            res.send({ role: user?.role || 'student' });
+        });
+
         // Post API
         app.post('/users', async (req, res) => {
             const user = req.body;
