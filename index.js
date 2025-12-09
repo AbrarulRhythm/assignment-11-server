@@ -34,6 +34,7 @@ async function run() {
 
         const db = client.db('e_tuitionBd_db');
         const usersCollection = db.collection('users');
+        const tuitionsCollection = db.collection('tuitions');
 
         // :::::::::::::::::::::::::::::: - User Related APIS - ::::::::::::::::::::::::::::::
         // Get API for user role
@@ -57,6 +58,16 @@ async function run() {
             }
 
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        // :::::::::::::::::::::::::::::: - Tuition Related APIS - ::::::::::::::::::::::::::::::
+        app.post('/tuitions', async (req, res) => {
+            const tuition = req.body;
+            tuition.status = 'pending';
+            tuition.createdAt = new Date();
+
+            const result = await tuitionsCollection.insertOne(tuition);
             res.send(result);
         });
 
