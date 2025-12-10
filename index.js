@@ -69,6 +69,13 @@ async function run() {
         });
 
         // :::::::::::::::::::::::::::::: - User Related APIS - ::::::::::::::::::::::::::::::
+        // Get API (all users)
+        app.get('/users', verifyJWTToken, async (req, res) => {
+            const cursor = usersCollection.find().sort({ createdAt: -1 });
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
         // Get API for user role
         app.get('/users/:email/role', verifyJWTToken, async (req, res) => {
             const email = req.params.email;
@@ -90,6 +97,15 @@ async function run() {
             }
 
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        // Delete API
+        app.delete('/users/:id/delete', verifyJWTToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+
+            const result = await usersCollection.deleteOne(query);
             res.send(result);
         });
 
