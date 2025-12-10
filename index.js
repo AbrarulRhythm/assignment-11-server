@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const port = process.env.PORT || 3000;
@@ -9,6 +10,30 @@ const port = process.env.PORT || 3000;
 // Middleeare
 app.use(cors());
 app.use(express.json());
+
+const verifyJWTToken = (req, res, next) => {
+    const authorization = req.headers.authorization;
+
+    if (!authorization) {
+        return res.status(401).send({ message: 'unauthorized access' });
+    }
+
+    const token = authorization.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).send({ message: 'unauthorized access' });
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ message: 'unauthorized access' });
+        }
+
+        req.token_email = decoded.email;
+
+        next();
+    });
+}
 
 app.use(async (req, res, next) => {
     console.log(
@@ -36,9 +61,16 @@ async function run() {
         const usersCollection = db.collection('users');
         const tuitionsCollection = db.collection('tuitions');
 
+        // :::::::::::::::::::::::::::::: - JWT Related APIS - ::::::::::::::::::::::::::::::
+        app.post('/getToken', (req, res) => {
+            const loggedUser = req.body;
+            const token = jwt.sign(loggedUser, process.env.JWT_SECRET, { expiresIn: '1h' });
+            res.send({ token: token });
+        });
+
         // :::::::::::::::::::::::::::::: - User Related APIS - ::::::::::::::::::::::::::::::
         // Get API for user role
-        app.get('/users/:email/role', async (req, res) => {
+        app.get('/users/:email/role', verifyJWTToken, async (req, res) => {
             const email = req.params.email;
             const query = { email };
             const user = await usersCollection.findOne(query);
@@ -46,7 +78,7 @@ async function run() {
         });
 
         // Post API
-        app.post('/users', async (req, res) => {
+        app.post('/users', verifyJWTToken, async (req, res) => {
             const user = req.body;
             user.createdAt = new Date();
 
@@ -63,12 +95,17 @@ async function run() {
 
         // :::::::::::::::::::::::::::::: - Tuition Related APIS - ::::::::::::::::::::::::::::::
         // GET API
-        app.get('/tuitions', async (req, res) => {
+        app.get('/tuitions', verifyJWTToken, async (req, res) => {
             const query = {};
             const { email, status } = req.query;
 
             if (email) {
                 query.email = email;
+            }
+
+            // Verify user have access to see this data
+            if (email !== req.token_email) {
+                return res.status(403).send({ message: 'forbidden access' });
             }
 
             if (status) {
@@ -90,7 +127,7 @@ async function run() {
         });
 
         // Post API
-        app.post('/tuitions', async (req, res) => {
+        app.post('/tuitions', verifyJWTToken, async (req, res) => {
             const tuition = req.body;
             tuition.status = 'pending';
             tuition.createdAt = new Date();
@@ -100,7 +137,7 @@ async function run() {
         });
 
         // Patch API
-        app.patch('/tuitions/:id/update', async (req, res) => {
+        app.patch('/tuitions/:id/update', verifyJWTToken, async (req, res) => {
             const id = req.params.id;
             const data = req.body;
             data.updatedAt = new Date();
@@ -116,7 +153,7 @@ async function run() {
         });
 
         // Delete API
-        app.delete('/tuitions/:id/delete', async (req, res) => {
+        app.delete('/tuitions/:id/delete', verifyJWTToken, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
 
