@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const port = process.env.PORT || 3000;
 
@@ -75,7 +75,7 @@ async function run() {
                 query.status = status;
             }
 
-            const cursor = tuitionsCollection.find(query);
+            const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 });
             const result = await cursor.toArray();
             res.send(result);
         });
@@ -87,6 +87,22 @@ async function run() {
             tuition.createdAt = new Date();
 
             const result = await tuitionsCollection.insertOne(tuition);
+            res.send(result);
+        });
+
+        // Patch API
+        app.patch('/tuitions/:id/update', async (req, res) => {
+            const id = req.params.id;
+            const data = req.body;
+            data.updatedAt = new Date();
+
+            const query = { _id: new ObjectId(id) };
+
+            const updatedDoc = {
+                $set: data
+            }
+
+            const result = await tuitionsCollection.updateOne(query, updatedDoc);
             res.send(result);
         });
 
