@@ -68,6 +68,20 @@ async function run() {
             res.send({ token: token });
         });
 
+        // Middle ware admin before allowing admin activity
+        // must be use after verifyJWTToken middle ware
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.token_email;
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+
+            if (!user || user.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden accress' });
+            }
+
+            next();
+        }
+
         // :::::::::::::::::::::::::::::: - User Related APIS - ::::::::::::::::::::::::::::::
         // Get API (all users)
         app.get('/users', verifyJWTToken, async (req, res) => {
@@ -101,7 +115,7 @@ async function run() {
         });
 
         // Patch API for update user role
-        app.patch('/users/:id/role', verifyJWTToken, async (req, res) => {
+        app.patch('/users/:id/role', verifyJWTToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const roleInfo = req.body;
             const query = { _id: new ObjectId(id) };
