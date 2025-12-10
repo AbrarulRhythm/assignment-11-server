@@ -62,6 +62,25 @@ async function run() {
         });
 
         // :::::::::::::::::::::::::::::: - Tuition Related APIS - ::::::::::::::::::::::::::::::
+        // GET API
+        app.get('/tuitions', async (req, res) => {
+            const query = {};
+            const { email, status } = req.query;
+
+            if (email) {
+                query.email = email;
+            }
+
+            if (status) {
+                query.status = status;
+            }
+
+            const cursor = tuitionsCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
+        // Post API
         app.post('/tuitions', async (req, res) => {
             const tuition = req.body;
             tuition.status = 'pending';
