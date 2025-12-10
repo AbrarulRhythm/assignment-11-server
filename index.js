@@ -80,6 +80,15 @@ async function run() {
             res.send(result);
         });
 
+        // Get API form single tuition
+        app.get('/tuitions/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+
+            const result = await tuitionsCollection.findOne(query);
+            res.send(result);
+        });
+
         // Post API
         app.post('/tuitions', async (req, res) => {
             const tuition = req.body;
@@ -113,7 +122,7 @@ async function run() {
 
             const result = await tuitionsCollection.deleteOne(query);
             res.send(result);
-        })
+        });
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
