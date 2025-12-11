@@ -107,6 +107,14 @@ async function run() {
             res.send({ role: user?.role || 'student' });
         });
 
+        // Get API for user ID
+        app.get('/users/:email/id', verifyJWTToken, async (req, res) => {
+            const email = req.params.email;
+            const query = { email };
+            const user = await usersCollection.findOne(query);
+            res.send({ id: user?._id || null });
+        });
+
         // Post API
         app.post('/users', verifyJWTToken, async (req, res) => {
             const user = req.body;
