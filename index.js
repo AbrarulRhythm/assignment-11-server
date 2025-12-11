@@ -64,7 +64,7 @@ async function run() {
         // :::::::::::::::::::::::::::::: - JWT Related APIS - ::::::::::::::::::::::::::::::
         app.post('/getToken', (req, res) => {
             const loggedUser = req.body;
-            const token = jwt.sign(loggedUser, process.env.JWT_SECRET, { expiresIn: '1h' });
+            const token = jwt.sign(loggedUser, process.env.JWT_SECRET, { expiresIn: '30d' });
             res.send({ token: token });
         });
 
@@ -116,7 +116,7 @@ async function run() {
         });
 
         // Post API
-        app.post('/users', verifyJWTToken, async (req, res) => {
+        app.post('/users', async (req, res) => {
             const user = req.body;
             user.createdAt = new Date();
 
@@ -128,6 +128,22 @@ async function run() {
             }
 
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        // Patch API
+        app.patch('/users/:id/update', verifyJWTToken, async (req, res) => {
+            const id = req.params.id;
+            const data = req.body;
+            data.updatedAt = new Date();
+
+            const query = { _id: new ObjectId(id) };
+
+            const updatedDoc = {
+                $set: data
+            }
+
+            const result = await usersCollection.updateOne(query, updatedDoc);
             res.send(result);
         });
 
