@@ -90,6 +90,15 @@ async function run() {
             res.send(result);
         });
 
+        // Get API for single user
+        app.get('/users/:id', verifyJWTToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+
+            const result = await usersCollection.findOne(query);
+            res.send(result);
+        });
+
         // Get API for user role
         app.get('/users/:email/role', verifyJWTToken, async (req, res) => {
             const email = req.params.email;
@@ -114,23 +123,8 @@ async function run() {
             res.send(result);
         });
 
-        // Patch API for update user role
-        app.patch('/users/:id/role', verifyJWTToken, verifyAdmin, async (req, res) => {
-            const id = req.params.id;
-            const roleInfo = req.body;
-            const query = { _id: new ObjectId(id) };
-            const updatedDoc = {
-                $set: {
-                    role: roleInfo.role
-                }
-            }
-
-            const result = await usersCollection.updateOne(query, updatedDoc);
-            res.send(result);
-        });
-
         // Delete API
-        app.delete('/users/:id/delete', verifyJWTToken, async (req, res) => {
+        app.delete('/users/:id/delete', verifyJWTToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
 
