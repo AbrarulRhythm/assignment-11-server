@@ -91,12 +91,41 @@ async function run() {
         });
 
         // Get API for single user
-        app.get('/users/:id', verifyJWTToken, verifyAdmin, async (req, res) => {
+        app.get('/users/:id', verifyJWTToken, async (req, res) => {
             const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
 
-            const result = await usersCollection.findOne(query);
-            res.send(result);
+            // Get form current user (verifyJWTToken)
+            const currentUserEmail = req.token_email;
+
+            const loggedInUser = await usersCollection.findOne({ email: currentUserEmail });
+            const isAdmin = loggedInUser && loggedInUser.role === 'admin';
+            const currentUserId = loggedInUser && loggedInUser._id.toString();
+
+            if (isAdmin) {
+                const query = { _id: new ObjectId(id) };
+                const result = await usersCollection.findOne(query);
+
+                if (!result) {
+                    return res.status(404).send({ message: 'User not found' });
+                }
+
+                return res.send(result);
+            }
+
+            // non admin
+            if (currentUserId === id) {
+                const query = { _id: new ObjectId(id) };
+                const result = await usersCollection.findOne(query);
+
+                if (!result) {
+                    return res.status(404).send({ message: 'User not found' });
+                }
+
+                return res.send(result);
+            }
+            else {
+                res.status(403).send({ message: 'Forbidden: You can only view your own profile.' });
+            }
         });
 
         // Get API for user role
