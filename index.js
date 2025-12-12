@@ -176,6 +176,20 @@ async function run() {
             res.send(result);
         });
 
+        // Patch API for update user role
+        app.patch('/users/:id/update/role', verifyJWTToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const roleInfo = req.body;
+            const query = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    role: roleInfo.role
+                }
+            }
+            const result = await usersCollection.updateOne(query, updatedDoc);
+            res.send(result);
+        });
+
         // Delete API
         app.delete('/users/:id/delete', verifyJWTToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
