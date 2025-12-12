@@ -209,13 +209,17 @@ async function run() {
                 query.email = email;
             }
 
-            // Verify user have access to see this data
-            if (email !== req.token_email) {
-                return res.status(403).send({ message: 'forbidden access' });
-            }
-
             if (status) {
-                query.status = status;
+                const statusArray = status
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean);
+
+                if (statusArray.length === 1) {
+                    query.status = status;
+                } else if (statusArray.length > 1) {
+                    query.status = { $in: statusArray };
+                }
             }
 
             const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 });
@@ -254,6 +258,22 @@ async function run() {
                 $set: data
             }
 
+            const result = await tuitionsCollection.updateOne(query, updatedDoc);
+            res.send(result);
+        });
+
+        // Patch API for update tuition status
+        app.patch('/tuitions/:id/status/update', verifyJWTToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const statusInfo = req.body;
+
+            const query = { _id: new ObjectId(id) };
+
+            const updatedDoc = {
+                $set: {
+                    status: statusInfo.status
+                }
+            }
             const result = await tuitionsCollection.updateOne(query, updatedDoc);
             res.send(result);
         });
