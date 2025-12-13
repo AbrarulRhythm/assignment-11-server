@@ -203,7 +203,7 @@ async function run() {
         // GET API
         app.get('/tuitions', verifyJWTToken, async (req, res) => {
             const query = {};
-            const { email, status, searchText } = req.query;
+            const { limit = 0, skip = 0, email, status, searchText } = req.query;
 
             if (email) {
                 query.email = email;
@@ -229,7 +229,20 @@ async function run() {
                 ]
             }
 
-            const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(10);
+            const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(Number(limit)).skip(Number(skip));
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
+        app.get('/latest-tuitions', async (req, res) => {
+            const query = {};
+            const { status } = req.query;
+
+            if (status) {
+                query.status = 'approved'
+            }
+
+            const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(8);
             const result = await cursor.toArray();
             res.send(result);
         });
