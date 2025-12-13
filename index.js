@@ -203,7 +203,7 @@ async function run() {
         // GET API
         app.get('/tuitions', verifyJWTToken, async (req, res) => {
             const query = {};
-            const { email, status } = req.query;
+            const { email, status, searchText } = req.query;
 
             if (email) {
                 query.email = email;
@@ -222,7 +222,14 @@ async function run() {
                 }
             }
 
-            const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 });
+            if (searchText) {
+                query.$or = [
+                    { subject: { $regex: searchText, $options: 'i' } },
+                    { name: { $regex: searchText, $options: 'i' } }
+                ]
+            }
+
+            const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(10);
             const result = await cursor.toArray();
             res.send(result);
         });
