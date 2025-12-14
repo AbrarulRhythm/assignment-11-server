@@ -60,6 +60,7 @@ async function run() {
         const db = client.db('e_tuitionBd_db');
         const usersCollection = db.collection('users');
         const tuitionsCollection = db.collection('tuitions');
+        const applicationRequestCollection = db.collection('applicationRequest');
 
         // :::::::::::::::::::::::::::::: - JWT Related APIS - ::::::::::::::::::::::::::::::
         app.post('/getToken', (req, res) => {
@@ -234,6 +235,7 @@ async function run() {
             res.send(result);
         });
 
+        // Get API for latest tuitions
         app.get('/latest-tuitions', async (req, res) => {
             const query = {};
             const { status } = req.query;
@@ -249,8 +251,15 @@ async function run() {
 
         // Get API form single tuition
         app.get('/tuitions/:id', async (req, res) => {
+            const query = {};
             const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
+            const { status } = req.query;
+
+            if (status) {
+                query.status = 'approved'
+            }
+
+            query._id = new ObjectId(id);
 
             const result = await tuitionsCollection.findOne(query);
             res.send(result);
@@ -304,6 +313,31 @@ async function run() {
             const query = { _id: new ObjectId(id) };
 
             const result = await tuitionsCollection.deleteOne(query);
+            res.send(result);
+        });
+
+        // :::::::::::::::::::::::::::::: - Tutor Request Related APIS - ::::::::::::::::::::::::::::::
+        // Get API
+        app.get('/tutor-request', verifyJWTToken, async (req, res) => {
+            const query = {};
+            const { email } = req.query;
+
+            if (email) {
+                query.studentEmail = email
+            }
+
+            const cursor = applicationRequestCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
+        // Post API
+        app.post('/tutor-request/', verifyJWTToken, async (req, res) => {
+            const requestData = req.body;
+            requestData.status = 'pending';
+            requestData.appliedAt = new Date();
+
+            const result = await applicationRequestCollection.insertOne(requestData);
             res.send(result);
         });
 
