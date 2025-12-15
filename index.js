@@ -362,6 +362,22 @@ async function run() {
             res.send(result);
         });
 
+        // Patch API for update status
+        app.patch('/tutor-request/:id/status/update', verifyJWTToken, async (req, res) => {
+            const id = req.params.id;
+            const statusInfo = req.body;
+
+            const query = { _id: new ObjectId(id) };
+
+            const updatedDoc = {
+                $set: {
+                    status: statusInfo.status
+                }
+            }
+            const result = await applicationRequestCollection.updateOne(query, updatedDoc);
+            res.send(result);
+        });
+
         // Delete API
         app.delete('/tutor-request/:id/delete', verifyJWTToken, async (req, res) => {
             const id = req.params.id;
