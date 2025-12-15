@@ -319,14 +319,19 @@ async function run() {
         // :::::::::::::::::::::::::::::: - Tutor Request Related APIS - ::::::::::::::::::::::::::::::
         // Get API
         app.get('/tutor-request', verifyJWTToken, async (req, res) => {
-            const query = {};
+            let query = {};
             const { email } = req.query;
 
             if (email) {
-                query.studentEmail = email
+                query = {
+                    $or: [
+                        { studentEmail: email },
+                        { tutorEmail: email }
+                    ]
+                }
             }
 
-            const cursor = applicationRequestCollection.find(query);
+            const cursor = applicationRequestCollection.find(query).sort({ appliedAt: -1 });
             const result = await cursor.toArray();
             res.send(result);
         });
@@ -338,6 +343,31 @@ async function run() {
             requestData.appliedAt = new Date();
 
             const result = await applicationRequestCollection.insertOne(requestData);
+            res.send(result);
+        });
+
+        // Patch API
+        app.patch('/tutor-request/:id/update', verifyJWTToken, async (req, res) => {
+            const id = req.params.id;
+            const data = req.body;
+            data.updatedAt = new Date();
+
+            const query = { _id: new ObjectId(id) };
+
+            const updatedDoc = {
+                $set: data
+            }
+
+            const result = await applicationRequestCollection.updateOne(query, updatedDoc);
+            res.send(result);
+        });
+
+        // Delete API
+        app.delete('/tutor-request/:id/delete', verifyJWTToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+
+            const result = await applicationRequestCollection.deleteOne(query);
             res.send(result);
         });
 
