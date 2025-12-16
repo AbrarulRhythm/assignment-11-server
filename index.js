@@ -4,6 +4,7 @@ const app = express();
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require('stripe')(process.env.STRIP_SECRET);
 
 const port = process.env.PORT || 3000;
 
@@ -81,6 +82,13 @@ async function run() {
             }
 
             next();
+        }
+
+        // Exchange Rate
+        async function getBDTtoUSDRate() {
+            const res = await fetch(`https://v6.exchangerate-api.com/v6/${process.env.EXCHANGERATE_KEY}/latest/BDT`);
+            const data = await res.json();
+            return data.conversion_rates.USD;
         }
 
         // :::::::::::::::::::::::::::::: - User Related APIS - ::::::::::::::::::::::::::::::
@@ -336,6 +344,14 @@ async function run() {
             res.send(result);
         });
 
+        // Get API for single application
+        app.get('/tutor-request/:id', verifyJWTToken, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await applicationRequestCollection.findOne(query);
+            res.send(result);
+        });
+
         // Post API
         app.post('/tutor-request/', verifyJWTToken, async (req, res) => {
             const requestData = req.body;
@@ -385,6 +401,43 @@ async function run() {
 
             const result = await applicationRequestCollection.deleteOne(query);
             res.send(result);
+        });
+
+        // :::::::::::::::::::::::::::::: - Strip Payment Related APIS - ::::::::::::::::::::::::::::::
+        // Post API
+        app.post('/create-checkout-session', async (req, res) => {
+            const paymentInfo = req.body;
+
+            // Amount
+            const bdtAmount = Number(paymentInfo.tutorSalary);
+            const rate = await getBDTtoUSDRate();
+            const usdAmount = bdtAmount * rate;
+            const amount = Math.round(usdAmount * 100);
+
+            const session = await stripe.checkout.sessions.create({
+                line_items: [
+                    {
+                        price_data: {
+                            currency: 'USD',
+                            unit_amount: amount,
+                            product_data: {
+                                name: paymentInfo.tutorName
+                            }
+                        },
+                        quantity: 1,
+                    }
+                ],
+                customer_email: paymentInfo.studentEmail,
+                mode: 'payment',
+                metadata: {
+                    applicationId: paymentInfo.applicationId
+                },
+                success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
+                cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+            });
+
+            console.log(session);
+            res.send({ url: session.url });
         });
 
         // Send a ping to confirm a successful connection
