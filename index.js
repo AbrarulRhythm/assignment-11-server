@@ -404,7 +404,7 @@ async function run() {
         });
 
         // :::::::::::::::::::::::::::::: - Strip Payment Related APIS - ::::::::::::::::::::::::::::::
-        // Post API
+        // Create stripe checkout session
         app.post('/create-checkout-session', async (req, res) => {
             const paymentInfo = req.body;
 
@@ -430,14 +430,65 @@ async function run() {
                 customer_email: paymentInfo.studentEmail,
                 mode: 'payment',
                 metadata: {
-                    applicationId: paymentInfo.applicationId
+                    applicationId: paymentInfo.applicationId,
+                    tuitionId: paymentInfo.tuitionId
                 },
-                success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success`,
-                cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+                success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled?cancelled=true`,
             });
 
-            console.log(session);
             res.send({ url: session.url });
+        });
+
+        // Payment Success API
+        app.patch('/payment-success', verifyJWTToken, async (req, res) => {
+            const sessionId = req.query.session_id;
+
+            const session = await stripe.checkout.sessions.retrieve(sessionId);
+            console.log(session);
+            if (session.payment_status === 'paid') {
+                const applicationId = session.metadata.applicationId;
+                const tuitionId = session.metadata.tuitionId;
+
+                const applicationObjectId = new ObjectId(applicationId);
+
+                // Update Select tuition -> set status approved
+                const approvedTuitionQuery = { _id: applicationObjectId };
+                const approvedTuitionUpdatedDoc = {
+                    $set: {
+                        status: 'approved'
+                    }
+                }
+                await applicationRequestCollection.updateOne(approvedTuitionQuery, approvedTuitionUpdatedDoc);
+
+                // Update others same subject tuition -> set status closed
+                const closedTuitionQuery = {
+                    tuitionId,
+                    _id: { $ne: applicationObjectId }
+                }
+                const closedTuitionUpdatedDoc = {
+                    $set: {
+                        status: 'closed'
+                    }
+                }
+                await applicationRequestCollection.updateMany(closedTuitionQuery, closedTuitionUpdatedDoc);
+
+                // Update tuition status -> set closed
+                const closedStudentTuitionQuery = { _id: new ObjectId(tuitionId) };
+                const closedStudentTuitionUpdatedDoc = {
+                    $set: {
+                        status: 'closed'
+                    }
+                }
+                await tuitionsCollection.updateOne(closedStudentTuitionQuery, closedStudentTuitionUpdatedDoc);
+
+                // Add payment history
+                // const payment = {
+
+                // }
+            }
+
+            res.send({ success: true })
         });
 
         // Send a ping to confirm a successful connection
