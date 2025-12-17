@@ -62,6 +62,7 @@ async function run() {
         const usersCollection = db.collection('users');
         const tuitionsCollection = db.collection('tuitions');
         const applicationRequestCollection = db.collection('applicationRequest');
+        const paymentCollection = db.collection('payments');
 
         // :::::::::::::::::::::::::::::: - JWT Related APIS - ::::::::::::::::::::::::::::::
         app.post('/getToken', (req, res) => {
@@ -466,7 +467,9 @@ async function run() {
                 metadata: {
                     applicationId: paymentInfo.applicationId,
                     tuitionId: paymentInfo.tuitionId,
-                    tutorEmail: paymentInfo.tutorEmail
+                    tutorEmail: paymentInfo.tutorEmail,
+                    tutorName: paymentInfo.tutorName,
+                    subjectName: paymentInfo.subjectName
                 },
                 success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
                 cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled?cancelled=true`,
@@ -480,7 +483,16 @@ async function run() {
             const sessionId = req.query.session_id;
 
             const session = await stripe.checkout.sessions.retrieve(sessionId);
-            console.log(session);
+
+            const transactionId = session.payment_intent;
+            const query = { transactionId: transactionId };
+
+            const paymentExist = await paymentCollection.findOne(query);
+
+            if (paymentExist) {
+                return res.send({ message: 'already exists', transactionId });
+            }
+
             if (session.payment_status === 'paid') {
                 const applicationId = session.metadata.applicationId;
                 const tuitionId = session.metadata.tuitionId;
@@ -518,15 +530,34 @@ async function run() {
                         tutorEmail
                     }
                 }
-                await tuitionsCollection.updateOne(closedStudentTuitionQuery, closedStudentTuitionUpdatedDoc);
+                const resultTution = await tuitionsCollection.updateOne(closedStudentTuitionQuery, closedStudentTuitionUpdatedDoc);
 
                 // Add payment history
-                // const payment = {
+                const payment = {
+                    amount: session.amount_total / 100,
+                    currency: session.currency,
+                    subjectName: session.metadata.subjectName,
+                    customerEmail: session.customer_email,
+                    tutorName: session.metadata.tutorName,
+                    tutorEmail: session.metadata.tutorEmail,
+                    tuitionId: session.metadata.tuitionId,
+                    applicationId: session.metadata.applicationId,
+                    transactionId: session.payment_intent,
+                    paymentStatus: session.payment_status,
+                    paidAt: new Date()
+                }
 
-                // }
+                const resultPayment = await paymentCollection.updateOne({ transactionId: transactionId }, { $setOnInsert: payment }, { upsert: true });
+
+                return res.send({
+                    success: true,
+                    modifiedTution: resultTution,
+                    paymentInfo: resultPayment,
+                    transactionId: session.payment_intent
+                });
             }
 
-            res.send({ success: true })
+            return res.send({ success: false })
         });
 
         // Send a ping to confirm a successful connection
