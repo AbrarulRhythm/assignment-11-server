@@ -273,6 +273,24 @@ async function run() {
             res.send(result);
         });
 
+        // Get API for tutorApplicationStatus
+        app.get('/tutor-application', verifyJWTToken, async (req, res) => {
+            const query = {};
+            const { tutorApplicationStatus, email } = req.query;
+
+            if (email) {
+                query.tutorEmail = email
+            }
+
+            if (tutorApplicationStatus) {
+                query.tutorApplicationStatus = tutorApplicationStatus
+            }
+
+            const cursor = tuitionsCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        });
+
         // Post API
         app.post('/tuitions', verifyJWTToken, async (req, res) => {
             const tuition = req.body;
@@ -309,6 +327,22 @@ async function run() {
             const updatedDoc = {
                 $set: {
                     status: statusInfo.status
+                }
+            }
+            const result = await tuitionsCollection.updateOne(query, updatedDoc);
+            res.send(result);
+        });
+
+        // Patch API for update tutorApplicationStatus
+        app.patch('/tutor-application/:id/status/update', verifyJWTToken, async (req, res) => {
+            const id = req.params.id;
+            const statusInfo = req.body;
+
+            const query = { _id: new ObjectId(id) };
+
+            const updatedDoc = {
+                $set: {
+                    tutorApplicationStatus: statusInfo.status
                 }
             }
             const result = await tuitionsCollection.updateOne(query, updatedDoc);
@@ -431,7 +465,8 @@ async function run() {
                 mode: 'payment',
                 metadata: {
                     applicationId: paymentInfo.applicationId,
-                    tuitionId: paymentInfo.tuitionId
+                    tuitionId: paymentInfo.tuitionId,
+                    tutorEmail: paymentInfo.tutorEmail
                 },
                 success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
                 cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled?cancelled=true`,
@@ -449,6 +484,7 @@ async function run() {
             if (session.payment_status === 'paid') {
                 const applicationId = session.metadata.applicationId;
                 const tuitionId = session.metadata.tuitionId;
+                const tutorEmail = session.metadata.tutorEmail;
 
                 const applicationObjectId = new ObjectId(applicationId);
 
@@ -477,7 +513,9 @@ async function run() {
                 const closedStudentTuitionQuery = { _id: new ObjectId(tuitionId) };
                 const closedStudentTuitionUpdatedDoc = {
                     $set: {
-                        status: 'closed'
+                        status: 'closed',
+                        tutorApplicationStatus: 'approved',
+                        tutorEmail
                     }
                 }
                 await tuitionsCollection.updateOne(closedStudentTuitionQuery, closedStudentTuitionUpdatedDoc);
