@@ -560,6 +560,25 @@ async function run() {
             return res.send({ success: false })
         });
 
+        // Payment History Get api
+        app.get('/payments', verifyJWTToken, async (req, res) => {
+            let query = {};
+            const { email } = req.query;
+
+            if (email) {
+                query = {
+                    $or: [
+                        { tutorEmail: email },
+                        { customerEmail: email }
+                    ]
+                };
+            }
+
+            const cursor = paymentCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
