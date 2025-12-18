@@ -94,8 +94,15 @@ async function run() {
 
         // :::::::::::::::::::::::::::::: - User Related APIS - ::::::::::::::::::::::::::::::
         // Get API (all users)
-        app.get('/users', verifyJWTToken, async (req, res) => {
-            const cursor = usersCollection.find().sort({ createdAt: -1 });
+        app.get('/users', async (req, res) => {
+            const { role } = req.query;
+            const query = {};
+
+            if (role) {
+                query.role = role;
+            }
+
+            const cursor = usersCollection.find(query).sort({ createdAt: -1 });
             const result = await cursor.toArray();
             res.send(result);
         });
