@@ -154,6 +154,20 @@ async function run() {
             res.send({ id: user?._id || null });
         });
 
+        // Get latest user
+        app.get('/latest-user', async (req, res) => {
+            const { role } = req.query;
+            const query = {};
+
+            if (role) {
+                query.role = role;
+            }
+
+            const cursor = usersCollection.find(query).sort({ createdAt: -1 }).limit(8);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
         // Post API
         app.post('/users', async (req, res) => {
             const user = req.body;
