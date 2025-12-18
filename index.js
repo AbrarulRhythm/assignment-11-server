@@ -93,6 +93,30 @@ async function run() {
         }
 
         // :::::::::::::::::::::::::::::: - User Related APIS - ::::::::::::::::::::::::::::::
+        app.get('/users/role', verifyJWTToken, async (req, res) => {
+            const pipeline = [
+                {
+                    $match: {
+                        role: { $ne: 'admin' }
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$role',
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $project: {
+                        role: '$_id',
+                        count: 1
+                    }
+                }
+            ]
+            const result = await usersCollection.aggregate(pipeline).toArray();
+            res.send(result);
+        });
+
         // Get API (all users)
         app.get('/users', async (req, res) => {
             const { role } = req.query;
@@ -231,8 +255,27 @@ async function run() {
         });
 
         // :::::::::::::::::::::::::::::: - Tuition Related APIS - ::::::::::::::::::::::::::::::
+        app.get('/tuitions/status', verifyJWTToken, async (req, res) => {
+            const pipeline = [
+                {
+                    $group: {
+                        _id: '$status',
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $project: {
+                        status: '$_id',
+                        count: 1
+                    }
+                },
+            ]
+            const result = await tuitionsCollection.aggregate(pipeline).toArray();
+            res.send(result);
+        });
+
         // GET API
-        app.get('/tuitions', verifyJWTToken, async (req, res) => {
+        app.get('/tuitions', async (req, res) => {
             const query = {};
             const { limit = 0, skip = 0, email, status, searchText } = req.query;
 
@@ -381,6 +424,33 @@ async function run() {
         });
 
         // :::::::::::::::::::::::::::::: - Tutor Request Related APIS - ::::::::::::::::::::::::::::::
+        app.get('/tutor-request/status', async (req, res) => {
+            const email = req.query.email;
+            const pipeline = [
+                {
+                    $match: {
+                        tutorEmail: email
+                    }
+                },
+                {
+
+                    $group: {
+                        _id: '$status',
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $project: {
+                        status: '$_id',
+                        count: 1
+                    }
+                }
+            ]
+
+            const result = await applicationRequestCollection.aggregate(pipeline).toArray();
+            res.send(result);
+        });
+
         // Get API
         app.get('/tutor-request', verifyJWTToken, async (req, res) => {
             let query = {};
@@ -460,6 +530,61 @@ async function run() {
         });
 
         // :::::::::::::::::::::::::::::: - Strip Payment Related APIS - ::::::::::::::::::::::::::::::
+        app.get('/payments/total', verifyJWTToken, async (req, res) => {
+            const pipeline = [
+                {
+                    $group: {
+                        _id: null,
+                        // _id: '$amount',
+                        totalEarning: { $sum: '$amount' },
+                        count: { $sum: 1 }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        totalEarning: 1,
+                        totalOrders: '$count'
+                    }
+                }
+            ]
+            const result = await paymentCollection.aggregate(pipeline).toArray();
+            res.send(result.length > 0 ? result[0] : { totalEarning: 0, totalOrders: 0 });
+        });
+
+        app.get('/payments/chart-data', verifyJWTToken, async (req, res) => {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            sevenDaysAgo.setHours(0, 0, 0, 0);
+
+            const pipeline = [
+                {
+                    $match: {
+                        paidAt: { $gte: sevenDaysAgo }
+                    }
+                },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$paidAt" } },
+                        amount: { $sum: '$amount' }
+                    }
+                },
+                {
+                    $sort: { _id: 1 }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        name: '$_id',
+                        amount: 1
+                    }
+                }
+            ];
+
+            const result = await paymentCollection.aggregate(pipeline).toArray();
+            res.send(result);
+        });
+
         // Create stripe checkout session
         app.post('/create-checkout-session', async (req, res) => {
             const paymentInfo = req.body;
@@ -595,7 +720,7 @@ async function run() {
                 };
             }
 
-            const cursor = paymentCollection.find(query);
+            const cursor = paymentCollection.find(query).sort({ paidAt: -1 });
             const result = await cursor.toArray();
             res.send(result);
         })
