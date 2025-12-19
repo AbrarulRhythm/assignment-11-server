@@ -256,7 +256,18 @@ async function run() {
 
         // :::::::::::::::::::::::::::::: - Tuition Related APIS - ::::::::::::::::::::::::::::::
         app.get('/tuitions/status', verifyJWTToken, async (req, res) => {
+            const email = req.query.email;
+            const role = req.query.role;
+            let query = {};
+
+            if (role !== 'admin' && email) {
+                query.email = email;
+            }
+
             const pipeline = [
+                {
+                    $match: query
+                },
                 {
                     $group: {
                         _id: '$status',
@@ -424,7 +435,7 @@ async function run() {
         });
 
         // :::::::::::::::::::::::::::::: - Tutor Request Related APIS - ::::::::::::::::::::::::::::::
-        app.get('/tutor-request/status', async (req, res) => {
+        app.get('/tutor-request/status', verifyJWTToken, async (req, res) => {
             const email = req.query.email;
             const pipeline = [
                 {
@@ -531,7 +542,19 @@ async function run() {
 
         // :::::::::::::::::::::::::::::: - Strip Payment Related APIS - ::::::::::::::::::::::::::::::
         app.get('/payments/total', verifyJWTToken, async (req, res) => {
+            const email = req.query.email;
+            const role = req.query.role;
+
+            let query = {};
+
+            if (role !== 'admin' && email) {
+                query = { tutorEmail: email };
+            }
+
             const pipeline = [
+                {
+                    $match: query
+                },
                 {
                     $group: {
                         _id: null,
