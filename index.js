@@ -315,8 +315,10 @@ async function run() {
             }
 
             const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(Number(limit)).skip(Number(skip));
+            const count = await tuitionsCollection.countDocuments(query);
+
             const result = await cursor.toArray();
-            res.send(result);
+            res.send({ result, count });
         });
 
         // Get API for latest tuitions
