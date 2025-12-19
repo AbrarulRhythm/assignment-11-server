@@ -288,10 +288,18 @@ async function run() {
         // GET API
         app.get('/tuitions', async (req, res) => {
             const query = {};
-            const { limit = 0, skip = 0, email, status, searchText } = req.query;
+            const { limit = 0, skip = 0, sort, order = 'desc', email, status, searchText } = req.query;
 
             if (email) {
                 query.email = email;
+            }
+
+            const sortOption = {};
+
+            if (sort) {
+                sortOption[sort] = order === 'asc' ? 1 : -1;
+            } else {
+                sortOption['createdAt'] = -1;
             }
 
             if (status) {
@@ -314,7 +322,7 @@ async function run() {
                 ]
             }
 
-            const cursor = tuitionsCollection.find(query).sort({ createdAt: -1 }).limit(Number(limit)).skip(Number(skip));
+            const cursor = tuitionsCollection.find(query).sort(sortOption).limit(Number(limit)).skip(Number(skip));
             const count = await tuitionsCollection.countDocuments(query);
 
             const result = await cursor.toArray();
