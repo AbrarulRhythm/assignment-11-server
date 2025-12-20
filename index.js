@@ -169,6 +169,13 @@ async function run() {
             }
         });
 
+        app.get('/tutors/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await usersCollection.findOne(query);
+            res.send(result);
+        });
+
         // Get API for user role
         app.get('/users/:email/role', verifyJWTToken, async (req, res) => {
             const email = req.params.email;
