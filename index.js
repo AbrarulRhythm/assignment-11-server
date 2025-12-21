@@ -295,7 +295,7 @@ async function run() {
         // GET API
         app.get('/tuitions', async (req, res) => {
             const query = {};
-            const { limit = 0, skip = 0, sort, order = 'desc', email, status, searchText } = req.query;
+            const { limit = 0, skip = 0, sort, order = 'desc', email, status, searchText, classes, subjects, tutorGender } = req.query;
 
             if (email) {
                 query.email = email;
@@ -327,6 +327,54 @@ async function run() {
                     { subject: { $regex: searchText, $options: 'i' } },
                     { name: { $regex: searchText, $options: 'i' } }
                 ]
+            }
+
+            if (classes) {
+                const classArray = classes.split(',').filter(Boolean);
+
+                if (classArray.length > 0) {
+                    query.class = { $in: classArray };
+                }
+            }
+
+            if (subjects) {
+                const subjectArray = subjects.split(',').map(s => s.trim()).filter(Boolean);
+
+                if (subjectArray.length > 0) {
+                    const subjectFilters = subjectArray.map(sub => ({
+                        subject: { $regex: sub, $options: 'i' }
+                    }));
+
+                    if (query.$or) {
+                        query.$and = [
+                            { $or: query.$or },
+                            { $or: subjectFilters }
+                        ];
+                        delete query.$or;
+                    } else {
+                        query.$or = subjectFilters;
+                    }
+                }
+            }
+
+            if (tutorGender) {
+                const tutorGenderArray = tutorGender.split(',').map(s => s.trim()).filter(Boolean);
+
+                if (tutorGenderArray.length > 0) {
+                    const tutorGenderFilters = tutorGenderArray.map(sub => ({
+                        tutorGender: { $regex: sub, $options: 'i' }
+                    }));
+
+                    if (query.$or) {
+                        query.$and = [
+                            { $or: query.$or },
+                            { $or: tutorGenderFilters }
+                        ];
+                        delete query.$or;
+                    } else {
+                        query.$or = tutorGenderFilters;
+                    }
+                }
             }
 
             const cursor = tuitionsCollection.find(query).sort(sortOption).limit(Number(limit)).skip(Number(skip));
